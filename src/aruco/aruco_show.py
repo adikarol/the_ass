@@ -1,9 +1,8 @@
-2#/usr/bin/python
+#!/usr/bin/env python
 import sys
 import numpy as np
 import cv2
 import cv2.aruco as aruco
-#import cairo
 import reportlab
 from reportlab.pdfgen import canvas
 import reportlab.lib.pagesizes as pagesizes
@@ -11,10 +10,6 @@ from reportlab.lib.utils import ImageReader
 import argparse
 from PIL import Image
 
-'''
-    drawMarker(...)
-        drawMarker(dictionary, id, sidePixels[, img[, borderBits]]) -> img
-'''
 
 def mm_to_points(mm):
     mm_in_inch = 25.4
@@ -23,9 +18,6 @@ def mm_to_points(mm):
 
 
 if __name__ == '__main__':
-
-#    if not cairo.HAS_PDF_SURFACE:
-#        raise SystemExit('cairo was not compiled with PDF support')
 
     parser = argparse.ArgumentParser(description='Aruco marker creator.')
     parser.add_argument('markers', metavar='M', type=int, nargs='+',
@@ -39,17 +31,19 @@ if __name__ == '__main__':
     parser.add_argument('-l', '--length', dest='marker_length', type=int, default=50,
                         help='marker length in millimeters')
     parser.add_argument('--paper', dest='paper', choices=('letter', 'A4'), default='A4',
-                        help="Paper size")
+                        help='Paper size')
     parser.add_argument('--landscape', dest='landscape', action='store_const',
-                        const=True, default=False, help="Landscape page")
+                        const=True, default=False, help='Landscape page')
     parser.add_argument('--portrait', dest='landscape', action='store_const',
-                        const=False, default=False, help="Portrait page")
+                        const=False, default=False, help='Portrait page')
     parser.add_argument('--border', type=float, default=1,
-                        help="border factor (number of cells)")
+                        help='Border factor (number of cells) included in length')
     parser.add_argument('--spacing', dest='spacing', type=float, default=20,
-                        help="marker spacing in vertical and horizontal (mm)")
+                        help='Marker spacing in vertical and horizontal (mm)')
     parser.add_argument('--pagemargin', dest='margins', type=float, default=15,
-                        help="Page margins (mm)")
+                        help='Page margins (mm)')
+    parser.add_argument('--labels', dest='labels', action='store_const',
+                        const=True, default=False, help='Print marker labels (default false)')
     args = parser.parse_args()
     
     dict_type = { (4, 50): aruco.DICT_4X4_50,
@@ -70,7 +64,6 @@ if __name__ == '__main__':
                   (7, 1000): aruco.DICT_7X7_1000
                 }.get((args.cells, args.dict_size))
     aruco_dict = aruco.Dictionary_get(dict_type)
-    print(aruco_dict)
     
     # source: http://www.papersizes.org/a-paper-sizes.htm
     paper_dimensions = {
@@ -86,23 +79,27 @@ if __name__ == '__main__':
     (paper_width, paper_height) = paper_dimensions[args.paper.lower()]
     if (args.landscape):
         (paper_width, paper_height) = (paper_height, paper_width)
-#    surface = cairo.PDFSurface(args.output, paper_width, paper_height)
     surface = canvas.Canvas(args.output, pagesize=paper_types[args.paper.lower()])
-    
+    if args.labels:
+        surface.setFont('Helvetica', 10)
+
     pos = (args.margins, args.margins)
+    label_height = 0 if not args.labels else 5
+
     for marker in args.markers:
         # past horizontal margin?
-        print(marker, pos)
         if pos[0] + args.marker_length > paper_width - args.margins:
             # one line down
-            pos = (args.margins, pos[1] + args.marker_length + args.spacing)
+            pos = (args.margins, pos[1] + args.marker_length + args.spacing + label_height)
         # past vertical margin?
         if pos[1] + args.marker_length > paper_height - args.margins:
-            break
+            pos = (args.margins, args.margins)
+            surface.showPage()
         img = aruco.drawMarker(aruco_dict, marker, sidePixels=int(mm_to_points(args.marker_length)), borderBits=args.border)
-#        surface.draw_image(img, pos)
-        print(marker, pos, args.marker_length, paper_width, paper_height, args.spacing, args.margins)
-        surface.drawImage(ImageReader(Image.fromarray(img)), mm_to_points(pos[0]), mm_to_points(pos[1]))#, args.marker_length, args.marker_length)
+        print(marker, pos)
+        surface.drawImage(ImageReader(Image.fromarray(img)), mm_to_points(pos[0]), mm_to_points(pos[1] + label_height))#, args.marker_length, args.marker_length)
+        if args.labels:
+            surface.drawString(mm_to_points(pos[0]), mm_to_points(pos[1]), str(marker))
         pos = (pos[0] + args.marker_length + args.spacing, pos[1])
 
         # debug

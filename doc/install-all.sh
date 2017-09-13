@@ -82,6 +82,9 @@ pip install numpy
 pip install ipython
 # pip install scipy
 
+pip install reportlab
+pip install Pillow
+
 cd ~/src/3rdParty/opencv-3.3.0
 mkdir build
 cd build
@@ -106,3 +109,5 @@ ln -s /usr/local/lib/python2.7/site-packages/cv2.so cv2.so
 # load the camera module
 sudo modprobe bcm2835-v4l2
 
+# sample aruco markers
+python aruco_show.py 11 12 13 14 15 16 17 18 19 20 21 22 -o markers_4x4_50.pdf --labels --length 70
