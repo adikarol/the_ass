@@ -4,15 +4,13 @@ Y_CART_LEN = 240
 
 
 # Board consts
-MOTORS_DIS = 9550
+MOTORS_DIS = 955
 
 LEFT_MOTOR_X_POS = 0 # Get from Mike's code
 LEFT_MOTOR_Y_POS = 0 # Get from Mike's code
 RIGHT_MOTOR_X_POS = LEFT_MOTOR_X_POS + MOTORS_DIS
 RIGHT_MOTOR_Y_POS = 0 # Get from Mike's code
 
-L_BELT_START_LEN = 0 # Get from Mike's code
-R_BELT_START_LEN = 0 # Get from Mike's code
 
 # Motor consts
 STEPS_IN_FULL_CIRCLE = 200.0

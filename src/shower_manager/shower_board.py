@@ -10,9 +10,11 @@ class Shower_board(object):
     def __init__(self):
         
         # TODO: temp until integration with Mike
-        self.cart_x_pos = 100
-        self.cart_y_pos = 100
+        self.cart_x_pos = 500
+        self.cart_y_pos = 500
         
+        print 'S ' + str(3000) + ' ' + str(2800)
+        sleep (0.1)
         
         
     def calc_belts_lens_from_position(self, x, y):
@@ -44,6 +46,8 @@ class Shower_board(object):
         # TODO change into real read from Mikel. meanwhile only increment
         self.cart_x_pos = self.cart_x_pos+10
         self.cart_y_pos = self.cart_y_pos+10
+        #print "\nNew cart position: [",self.cart_x_pos," ",self.cart_y_pos,")"
+        
         return self.cart_x_pos , self.cart_y_pos
 
 
