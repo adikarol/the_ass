@@ -43,10 +43,10 @@ def thread_func ():
 
     if y_dest != 0 and y_dest != y_pos:
       if y_dest > y_pos:
-        y_dir.write ("1\n")
+        y_dir.write ("0\n")
         y_pos += 1
       else:
-        y_dir.write ("0\n")
+        y_dir.write ("1\n")
         y_pos -= 1
       y_dir.flush ()
 
