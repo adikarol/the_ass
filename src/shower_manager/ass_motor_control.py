@@ -1,4 +1,5 @@
 import time
+import thread
 
 global x_pos
 global y_pos
@@ -28,14 +29,9 @@ def thread_func ():
   z_dir.write ("0\n")
   z_dir.flush ()
 
-  mot_ctrl.write ("0\n")
-  mot_ctrl.flush ()
-
-  print "starting"
-
   while True:
     # first pause for setting the step high
-    time.sleep (0.007)
+    time.sleep (0.004)
 
     if z_active:
       z_step.write ("1\n")
@@ -66,7 +62,7 @@ def thread_func ():
       x_step.flush ()
 
     # now pause for setting the step low
-    time.sleep (0.007)
+    time.sleep (0.004)
 
     z_step.write ("0\n")
     z_step.flush ()
@@ -77,15 +73,35 @@ def thread_func ():
     x_step.write ("0\n")
     x_step.flush ()
 
-if __name__ == "__main__":
-  import thread
-  import sys
+def set_current_position (x, y):
+  global x_pos
+  global y_pos
+  global x_dest
+  global y_dest
+  x_dest = x
+  y_dest = y
+  x_pos = x
+  y_pos = y
+  print "Setting the current location to %d,%d" % (x,y)
 
+def set_destination (x, y):
+  global x_dest
+  global y_dest
+  x_dest = x
+  y_dest = y
+  print "Setting the destination to %d,%d" % (x,y)
+
+def set_zurum (z):
+  global z_active
+  z_active = z
+
+def init ():
   global x_pos
   global y_pos
   global x_dest
   global y_dest
   global z_active
+  global mot_ctrl
 
   x_pos = 0
   y_pos = 0
@@ -93,7 +109,21 @@ if __name__ == "__main__":
   y_dest = 0
   z_active = 0
 
+  mot_ctrl.write ("0\n")
+  mot_ctrl.flush ()
+
   worker = thread.start_new_thread (thread_func, tuple([]))
+
+def cleanup ():
+  global mot_ctrl
+  mot_ctrl.write ("1\n")
+  mot_ctrl.flush ()
+
+
+if __name__ == "__main__":
+  import sys
+
+  init ()
 
   while True:
     ln = sys.stdin.readline ().strip ()
@@ -101,20 +131,18 @@ if __name__ == "__main__":
     if tokens:
       if tokens[0] == 'S':
         if len(tokens) < 3: continue
-        x_pos = int (tokens [1])
-        y_pos = int (tokens [2])
+        set_current_position (int (tokens [1]), int (tokens [2]))
 
       if tokens[0] == 'Z':
         if len(tokens) < 2: continue
-        z_active = int (tokens [1])
+        set_zurum (int (tokens [1]))
 
       if tokens[0] == 'M':
         if len(tokens) < 3: continue
-        x_dest = int (tokens [1])
-        y_dest = int (tokens [2])
+        set_destination (int (tokens [1]), int (tokens [2]))
 
       if tokens[0] == 'Q':
         break
 
-  mot_ctrl.write ("0\n")
-  mot_ctrl.flush ()
+  cleanup ()
+

@@ -4,6 +4,8 @@ from time import sleep
 from definitions import * 
 from subprocess import Popen, PIPE, STDOUT
 
+import ass_motor_control
+
 class Shower_board(object):
  
     
@@ -13,10 +15,8 @@ class Shower_board(object):
         self.cart_x_pos = 500
         self.cart_y_pos = 500
         
-        print 'S ' + str(3000) + ' ' + str(2800)
-        sleep (0.1)
-        
-        
+        ass_motor_control.set_current_position (3125, 3125)
+
     def calc_belts_lens_from_position(self, x, y):
         
         """
@@ -40,9 +40,6 @@ class Shower_board(object):
             
             @returns: cart_new_x_pos, cart_new_y_pos
         """
-        # Open pipe to motor hal
-        #p = Popen(['ass_motor_control.py'], stdout=PIPE, stdin=PIPE, stderr=PIPE)
-                
         # TODO change into real read from Mikel. meanwhile only increment
         self.cart_x_pos = self.cart_x_pos+10
         self.cart_y_pos = self.cart_y_pos+10
@@ -73,22 +70,20 @@ class Shower_board(object):
             # Read cart target coordinates from Camera 
             x, y = self.read_target_coordinates()
             belt_new_l_mm, belt_new_r_mm = self.calc_belts_lens_from_position(x, y)
-            #print "\nRequired belt length (in mm):  LEFT: ",belt_new_l_mm,"  RIGHT: ",belt_new_r_mm
+            print "\nRequired belt length (in mm):  LEFT: ",belt_new_l_mm,"  RIGHT: ",belt_new_r_mm
             
             # Cala stes per motor
             steps_l = self.calc_target_steps(belt_new_l_mm)
             steps_r = self.calc_target_steps(belt_new_r_mm)
             
-            #print "Calculated LEFT motor steps:  LEFT: ",steps_l, "   RIGHT: ",steps_r
+            print "Calculated LEFT motor steps:  LEFT: ",steps_l, "   RIGHT: ",steps_r
             
             
             # call hal to pass steps to motor  
-            cmd = 'M ' + str(steps_l) + ' ' + str(steps_r)            
-            #stdout_data = p.communicate(input=cmd)[0]
-            print cmd
+            ass_motor_control.set_destination (steps_l, steps_r)
             
             # wait for 100ms
-            sleep(3)
+            sleep(2)
 
 
 
@@ -97,6 +92,7 @@ class Shower_board(object):
 def main(argv=None):
     if argv is None:
         argv = sys.argv
+    ass_motor_control.init ()
     shower = Shower_board()
     shower.run()
     
