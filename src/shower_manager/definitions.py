@@ -2,9 +2,6 @@
 X_CART_LEN = 170
 Y_CART_LEN = 240
 
-#CART_X_POS = 0 # Get from Mike's code
-#CART_Y_POS = 0 # Get from Mike's code
-
 
 # Board consts
 MOTORS_DIS = 9550

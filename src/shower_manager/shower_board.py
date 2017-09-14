@@ -1,21 +1,14 @@
 import sys
 import math
-#from cart import Cart
-from motor import Motor
 from time import sleep
 from definitions import * 
-
+from subprocess import Popen, PIPE, STDOUT
 
 class Shower_board(object):
  
     
-    def __init__(self,
-                 x_l_motor=LEFT_MOTOR_X_POS, y_l_motor=LEFT_MOTOR_Y_POS,
-                 x_r_motor=RIGHT_MOTOR_X_POS, y_r_motor=RIGHT_MOTOR_Y_POS):
+    def __init__(self):
         
-        self.l_motor = Motor(x_l_motor,y_l_motor, L_BELT_START_LEN, True)
-        self.r_motor = Motor(x_r_motor,y_r_motor, L_BELT_START_LEN, False)
-
         # TODO: temp until integration with Mike
         self.cart_x_pos = 100
         self.cart_y_pos = 100
@@ -45,13 +38,24 @@ class Shower_board(object):
             
             @returns: cart_new_x_pos, cart_new_y_pos
         """
-    
+        # Open pipe to motor hal
+        #p = Popen(['ass_motor_control.py'], stdout=PIPE, stdin=PIPE, stderr=PIPE)
+                
         # TODO change into real read from Mikel. meanwhile only increment
         self.cart_x_pos = self.cart_x_pos+10
         self.cart_y_pos = self.cart_y_pos+10
         return self.cart_x_pos , self.cart_y_pos
 
+
+    def calc_target_steps(self, mm):
     
+        """
+            Method translates this length into number of steps (from the motor).  
+        """
+                
+        return int(mm / MM_IN_SINGLE_STEP) 
+
+
     
     
     ############# MAIN RUNNING METHOD #####################      
@@ -64,15 +68,23 @@ class Shower_board(object):
               
             # Read cart target coordinates from Camera 
             x, y = self.read_target_coordinates()
-            belt_new_l, belt_new_r = self.calc_belts_lens_from_position(x, y)
-            print "\nRequired belt length:  LEFT: ",belt_new_l,"  RIGHT: ",belt_new_r
+            belt_new_l_mm, belt_new_r_mm = self.calc_belts_lens_from_position(x, y)
+            #print "\nRequired belt length (in mm):  LEFT: ",belt_new_l_mm,"  RIGHT: ",belt_new_r_mm
             
-            # Update the belt of the left and right motor
-            self.l_motor.update_belt_len(belt_new_l)
-            self.r_motor.update_belt_len(belt_new_r)
+            # Cala stes per motor
+            steps_l = self.calc_target_steps(belt_new_l_mm)
+            steps_r = self.calc_target_steps(belt_new_r_mm)
+            
+            #print "Calculated LEFT motor steps:  LEFT: ",steps_l, "   RIGHT: ",steps_r
+            
+            
+            # call hal to pass steps to motor  
+            cmd = 'M ' + str(steps_l) + ' ' + str(steps_r)            
+            #stdout_data = p.communicate(input=cmd)[0]
+            print cmd
             
             # wait for 100ms
-            sleep(0.1)
+            sleep(3)
 
 
 
