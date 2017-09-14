@@ -4,48 +4,33 @@ from definitions import *
 class Motor(object):
     
 
-    def __init__(self, x_pos=0, y_pos=0, belt=50):
+    def __init__(self, x_pos, y_pos, belt, is_left):
         
         """A new Motor instance"""
         
         self.x_pos = x_pos
         self.y_pos = y_pos
         self.belt = belt
+        self.is_left = is_left
        
 
 
-    def update_belt_len(self, increase, mm):
+    def update_belt_len(self, mm):
     
         """
-            This method tells the motor hom much mm should the belt len be increased/decreased.
+            This method tells the motor the new requested belt lenght.
+            Method translates this length into number of steps (from the motor).  
         """
                 
-        steps_to_make = mm / MM_IN_SINGLE_STEP  
-
-        set_motor_direction(increase)
+        target_steps = int(mm / MM_IN_SINGLE_STEP)  
         
-        # loop on steps
-        while (steps_to_make):
-            single_step()
-            steps_to_make -= 1            
-            
+        if self.is_left:
+            print "Calculated LEFT motor steps: ",target_steps
+        else:
+            print "Calculated RIGHT motor steps: ",target_steps
 
-    # Privet methods
-    
-    def _set_motor_direction(self, increase):
-    
-        # add code here that controls the direction GPIO
-        return
+        # TODO: add call to Jon's code here            
 
-
-
-    def _single_step(self):
-         
-        # add code here that performs single step        
-        return
-
- 
-            
         
             
     

@@ -14,6 +14,9 @@ class Cart(object):
         self.x_pos = x_pos
         self.y_pos = y_pos
         self.state = 0  #OFF by default
+        
+        print "Initializating cart..."
+        print_cart_position()
     
     
     
@@ -21,9 +24,16 @@ class Cart(object):
         """ Sets the target location for the cart. 
             Cart will start moving immediately.
         """
-        print "Initial Cart position:(",self.x_pos,",",self.y_pos,")"
+        
+        return               
                
     
+    
+    def get_pos(self):
+        
+        return self.x_pos, self.y_pos
+        
+        
     
     def print_cart_position (self):
            
