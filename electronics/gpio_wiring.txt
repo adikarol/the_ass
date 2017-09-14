@@ -1,0 +1,8 @@
+5 - 1st motor step
+6 - 1st motor direction
+13 - 2nd motor step
+19 - 2nd motor direction
+26 - 3rd motor step
+12 - 3rd motor direction
+16 - motor enable
+
