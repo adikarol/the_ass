@@ -77,7 +77,7 @@ if __name__ == '__main__':
     }
     
     (paper_width, paper_height) = paper_dimensions[args.paper.lower()]
-    if (args.landscape):
+    if args.landscape:
         (paper_width, paper_height) = (paper_height, paper_width)
     surface = canvas.Canvas(args.output, pagesize=paper_types[args.paper.lower()])
     if args.labels:
@@ -95,11 +95,18 @@ if __name__ == '__main__':
         if pos[1] + args.marker_length > paper_height - args.margins:
             pos = (args.margins, args.margins)
             surface.showPage()
-        img = aruco.drawMarker(aruco_dict, marker, sidePixels=int(mm_to_points(args.marker_length)), borderBits=args.border)
+        img = aruco.drawMarker(aruco_dict, 
+                               marker, 
+                               sidePixels=int(mm_to_points(args.marker_length)), 
+                               borderBits=args.border)
         print(marker, pos)
-        surface.drawImage(ImageReader(Image.fromarray(img)), mm_to_points(pos[0]), mm_to_points(pos[1] + label_height))#, args.marker_length, args.marker_length)
+        surface.drawImage(ImageReader(Image.fromarray(img)), 
+                          mm_to_points(pos[0]), 
+                          mm_to_points(pos[1] + label_height))#, args.marker_length, args.marker_length)
         if args.labels:
-            surface.drawString(mm_to_points(pos[0]), mm_to_points(pos[1]), str(marker))
+            surface.drawCentredString(mm_to_points(pos[0] + args.marker_length/2), 
+                                      mm_to_points(pos[1]), 
+                                      str(marker))
         pos = (pos[0] + args.marker_length + args.spacing, pos[1])
 
         # debug
