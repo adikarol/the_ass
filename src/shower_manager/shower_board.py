@@ -2,6 +2,7 @@ import sys
 import math
 import socket
 from time import sleep
+from subprocess import Popen
 from definitions import * 
 
 import ass_motor_control
@@ -10,6 +11,7 @@ class ShowerBoard(object):
   def __init__(self):
     self.cart_x_pos = 0
     self.cart_y_pos = 0
+    self.zurum_process = None
 
   def calc_belts_lens_from_position(self, x, y):
     """
@@ -65,6 +67,7 @@ class ShowerBoard(object):
 
     # open a server socket and listen for commands
     server_sock = socket.socket (socket.AF_INET, socket.SOCK_DGRAM)
+    server_sock.setsockopt (socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     server_sock.bind (("0.0.0.0", 8888))
     
     # Infinite loop to move the cart
@@ -106,6 +109,16 @@ class ShowerBoard(object):
           # call hal to pass steps to motor  
           ass_motor_control.set_destination (steps_l, steps_r)
 
+        elif cmd_tokens [0] == 'Z' and len (cmd_tokens) >= 2:
+          is_on = int (cmd_tokens [1])
+          ass_motor_control.set_zurum (is_on)
+          if is_on and self.zurum_process is None:
+            self.zurum_process = Popen ('omxplayer /home/pi/zurum.mp3', shell=True)
+          else:
+            if self.zurum_process is not None:
+              self.zurum_process.kill ()
+              self.zurum_process = None
+            Popen ('killall omxplayer.bin', shell=True)
 
 
 ############# FILE ENTRY POINT #####################
