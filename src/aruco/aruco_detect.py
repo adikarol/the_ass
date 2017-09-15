@@ -177,18 +177,25 @@ def calibrate_using_markers(corners, ids, gray_shape):
 motor_address = '10.0.0.1'
 motor_port = 8888
 
-def send_to_motor(message):
-    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    s.sendto(message, (motor_ip, motor_port))
+motor_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
-def send_motor_absolute(pos):
-    message = 'a:%f,%f' % (pos[0], pos[1])
-    send_to_motor(message)
+#def send_to_motor(message):
+#    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+#    s.sendto(message, (motor_ip, motor_port))
+#    s.close()
 
-def send_motor_delta(delta):
-    message = 'd:%f,%f' % (delta[0], delta[1])
-    send_to_motor(message)
+def send_motor_sponge_absolute(x, y):
+    message = 'S %f %f' % (x, y)
+    motor_socket.sendto(message, (motor_address, motor_port))
 
+def send_motor_zoorum(z):
+    message = 'Z %d' % (1 if z else 0)
+    motor_socket.sendto(message, (motor_address, motor_port))
+
+def send_motor_face_absolute(x, y):
+    message = 'M %f %f' % (x, y)
+    motor_socket.sendto(message, (motor_address, motor_port))
+    
 ######## END COMM ########
 
 
@@ -196,6 +203,8 @@ frame_cnt = 0
 faces = []
 mtx = None
 dist = None
+
+zoorum_mode = (False, 0)   # frame-count
 
 while(True):
     # Capture frame-by-frame
@@ -251,7 +260,7 @@ while(True):
                 delta += marker_center(chosen_marker) - marker_center(1)
 #            send_motor_absolute((delta[0], delta[1]))
             print 'absolute', chosen_marker, delta
-
+            send_motor_sponge_absolute(delta[0], delta[1])
     
     # face detection
     if (frame_cnt % DETECT_FACES_EVERY_FRAMES) == 0:
@@ -259,6 +268,9 @@ while(True):
 
     if len(faces) > 0:
         draw_faces(gray, faces)
+        if zoorum_mode[0] == False:
+            send_motor_zoorum(True)
+        zoorum_mode = (True, frame_cnt)
         # assume a single face
         face = faces[0]
         (x, y, w, h) = face
@@ -277,6 +289,11 @@ while(True):
 
             print('Face delta', face_delta)
             cv2.putText(gray, '%.2f,%.2f' % (face_delta[0], face_delta[1]), (x+20, y), cv2.FONT_HERSHEY_DUPLEX, 1, (0,0,255), 2)
+            send_motor_face_absolute(face_delta[0], face_delta[1] - 0.1)  # add 10cm up from center
+    else:
+        if zoorum_mode[0] and frame_cnt > zoorum_mode[1] + 60:
+            zoorum_mode = (False, frame_cnt)
+            send_motor_zoorum(False)
 
     # Display the resulting frame
     cv2.imshow('frame', gray)
