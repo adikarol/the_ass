@@ -3,6 +3,7 @@
 import numpy as np
 import cv2
 import cv2.aruco as aruco
+import socket
 
 cascPath = "cascade_frontface.xml"
 faceCascade = cv2.CascadeClassifier(cascPath)
@@ -11,7 +12,12 @@ cv_major_version = int(cv2.__version__.split('.')[0])
 
 # 80mm
 MARKER_LENGTH = 0.08
+
 DETECT_FACES_EVERY_FRAMES = 10
+CALIBRATE_EVERY_FRAMES = 100
+
+# 28cm between rotating sponge and middle of marker #9
+SHOWER_MARKER9_DISTANCE = 0.28
 
 cap = cv2.VideoCapture(0)
 
@@ -56,20 +62,30 @@ real_world_coords = [
     [0.86, 0.76, 0.0],
     [0.86, 0.84, 0.0],
     [0.78, 0.84, 0.0],
+    # marker 9 - notice this one moves along x, y. z is constant
+    [0.0, 0.0, 0.06],
+    [0.0, 0.0, 0.06],
+    [0.0, 0.0, 0.06],
+    [0.0, 0.0, 0.06],
     ]
-# make it an array of numpy vectors
-#real_world_coords = [np.array(cs, dtype=np.float) for cs in real_world_coords]
+
+
+def marker_center(marker):
+    assert(marker > 0 and marker <= 8)
+    m = marker - 1
+    return (np.array(real_world_coords[4*m]) + np.array(real_world_coords[4*m + 2])) / 2.0
 
 
 def get_points_for_marker(corners, ids, m):
-    """Returns the object and image points for marker #<m>"""
+    """Returns the object and image points for marker #<m>. 
+       This function should be removed in the future, get_point_for_markers should be used instead once usage is understood."""
     imgpoints = None
     objpoints = None
     if ids is None or corners is None:
         return objpoints, imgpoints
 
     for i, id in enumerate(ids):
-        if id == [m]:
+        if id == m:
             imgpoints = [corners[i][0].tolist()]
             objpoints = [real_world_coords[(m-1)*4:m*4]]
             break
@@ -79,22 +95,23 @@ def get_points_for_marker(corners, ids, m):
     return objpoints, imgpoints
 
 
-def get_sorted_image_points(corners, ids, markers):
-    """Returns a sorted array by marker id (from <markers>) of object-points with matching image-points.
-       Only markers 1-8 are returned, marker #9 is dropped from the list."""
+def get_points_for_markers(corners, ids, markers):
+    """Returns an array by marker id (from <markers>) of object-points with matching image-points."""
     imgpoints = []
     objpoints = []
+    detected = []
     for m in markers:
         # find marker 'm'
         for i, id in enumerate(ids):
-            if id == [m]:
+            if id == m:
                 imgpoints.extend(corners[i][0].tolist())
                 objpoints.extend(real_world_coords[(m-1)*4:m*4])
+                detected.append(m)
                 break
 
-    imgpoints = np.array(imgpoints, dtype=np.float32)
-    objpoints = np.array(objpoints, dtype=np.float32)
-    return objpoints, imgpoints
+    imgpoints = np.array([imgpoints], dtype=np.float32)
+    objpoints = np.array([objpoints], dtype=np.float32)
+    return objpoints, imgpoints, detected
 
     
 #def get_camera_calib(objpoints, imgpoints, gray):
@@ -120,36 +137,65 @@ def detect_faces(gray):
 def draw_faces(gray, faces):
     # Draw a rectangle around the faces
     for (x, y, w, h) in faces:
-        print "found a face at %d,%d,%d,%d" % (x,y,w,h)
+        print "found a face at %d, %d, %d, %d" % (x, y, w, h)
         cv2.rectangle(gray, (x,y), (x+w, y+h), (0, 255, 0), 2)
 
         # Print the coordinates of the face on the screen
-        coord = "(%s,%s)" % (x,y)
-        cv2.putText(gray, coord, (x+20,y), cv2.FONT_HERSHEY_DUPLEX, 1, (0,0,255),2)   
+        coord = "(%s, %s)" % (x, y)
+        cv2.putText(gray, coord, (x+20, y), cv2.FONT_HERSHEY_DUPLEX, 1, (0,0,255),2)
 
         # Draw a small dot in the exact coordintas - test!
-        cv2.circle(gray, (x,y), 15, (0,0,255),3)
+        cv2.circle(gray, (x, y), 15, (0, 0, 255), 3)
 
     return gray
 
 
 def detect_markers(gray):
     corners, ids, rejectedImgPoints = aruco.detectMarkers(gray, aruco_dict, parameters=parameters)
+    # ids has the following format: [[id]], we want to simplify to [id]
+    if ids is not None:
+        ids = [id[0] for id in ids]
     return corners, ids
 
 
 def calibrate_using_markers(corners, ids, gray_shape):
-#    if ids is None or corners is None:
-#        return None, None, None, None
-    objpoints, imgpoints = get_sorted_image_points(corners, ids, range(1, 9))
-    assert(len(objpoints) == len(imgpoints))
-    ret, mtx, dist, rvecs, tvecs = cv2.calibrateCamera([objpoints], [imgpoints], gray_shape[::-1], None, None)
+    assert(ids is not None)
+#    print corners[0].shape
+    objpoints, imgpoints, detected = get_points_for_markers(corners, ids, range(1, 9))
+    assert(objpoints.shape[:-1] == imgpoints.shape[:-1])
+# trying to reshape breaks calibration
+#    print(objpoints.shape, imgpoints.shape)
+#    objpoints = objpoints.reshape(objpoints.shape[1] / 4, 4, 3)
+#    imgpoints = imgpoints.reshape(imgpoints.shape[1] / 4, 4, 2)
+    ret, mtx, dist, rvecs, tvecs = cv2.calibrateCamera(objpoints, imgpoints, gray_shape[::-1], None, None)
     rvecs, tvecs = rvecs[0], tvecs[0]
     return mtx, dist, rvecs, tvecs
 
 
+######## COMM ########
+
+motor_address = '10.0.0.1'
+motor_port = 5008
+
+def send_to_motor(message):
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    s.sendto(message, (motor_ip, motor_port))
+
+def send_motor_absolute(pos):
+    message = 'a:%f,%f' % (pos[0], pos[1])
+    send_to_motor(message)
+
+def send_motor_delta(delta):
+    message = 'd:%f,%f' % (delta[0], delta[1])
+    send_to_motor(message)
+
+######## END COMM ########
+
+
 frame_cnt = 0
 faces = []
+mtx = None
+dist = None
 
 while(True):
     # Capture frame-by-frame
@@ -160,45 +206,63 @@ while(True):
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
     #print(parameters)
 
-    # calibration
+    # detect markers
     corners, ids = detect_markers(gray)
+
+    # any markers detected?
     if ids is not None:
-        mtx, dist, rvecs, tvecs = calibrate_using_markers(corners, ids, gray.shape)
-    
-        objpoints_1, imgpoints_1 = get_points_for_marker(corners, ids, 1)
-        #print imgpoints_1
-        if imgpoints_1 is not None:
-            rvecs_1, tvecs_1, _objPoints_1 = aruco.estimatePoseSingleMarkers(imgpoints_1, MARKER_LENGTH, mtx, dist)#, rvecs, tvecs)
-            #print(rvecs_1, tvecs_1)
-            #print(_objPoints_1)
 
-            gray = aruco.drawDetectedMarkers(gray, imgpoints_1) #corners)
-            for tvec, rvec in zip(tvecs_1, rvecs_1):
-                gray = aruco.drawAxis(gray, mtx, dist, rvec, tvec, 0.08)
-
+        # calibration
+        if (mtx is None) or (dist is None) or (frame_cnt % CALIBRATE_EVERY_FRAMES) == 0: 
+            mtx, dist, rvecs, tvecs = calibrate_using_markers(corners, ids, gray.shape)
+        # squares around markers
+        gray = aruco.drawDetectedMarkers(gray, corners)
+            
+        chones_marker = 0
+        tvecs_m = None
+        tvecs_9 = None
+        
+        # find central marker (#9)
         objpoints_9, imgpoints_9 = get_points_for_marker(corners, ids, 9)
-        #print imgpoints_9
         if imgpoints_9 is not None:
             rvecs_9, tvecs_9, _objPoints_9 = aruco.estimatePoseSingleMarkers(imgpoints_9, MARKER_LENGTH, mtx, dist)#, rvecs, tvecs)
-            #print(rvecs_9, tvecs_9)
-            #print(_objPoints_9)
-
             gray = aruco.drawDetectedMarkers(gray, imgpoints_9) #corners)
             for tvec, rvec in zip(tvecs_9, rvecs_9):
                 gray = aruco.drawAxis(gray, mtx, dist, rvec, tvec, 0.08)
 
-        if (imgpoints_1 is not None) and (imgpoints_9 is not None):
-            print tvecs_9[0] - tvecs_1[0]
+        # find a reference marker
+        for m in range(1, 9):
+            objpoints, imgpoints, detected = get_points_for_markers(corners, ids, [m])
+            if len(detected) == 1:
+                imgpoints = np.array([imgpoints]).astype(np.float32)  # reshape???
+                rvecs_m, tvecs_m, _objPoints_m = aruco.estimatePoseSingleMarkers(imgpoints, MARKER_LENGTH, mtx, dist)#, rvecs, tvecs)
+                gray = aruco.drawDetectedMarkers(gray, imgpoints) #corners)
+                for tvec, rvec in zip(tvecs_m, rvecs_m):
+                    gray = aruco.drawAxis(gray, mtx, dist, rvec, tvec, 0.08)
+                if tvecs_m is not None:
+                    chosen_marker = m
+                    break
 
+        # calc delta from #9 to chosen marker, send absolute to motor
+        if (chosen_marker > 0) and (imgpoints_9 is not None):
+            delta = tvecs_9[0][0] - tvecs_m[0][0]
+            if chosen_marker > 1:
+                delta += marker_center(chosen_marker) - marker_center(1)
+#            send_motor_absolute((delta[0], delta[1]))
+            print 'absolute', chosen_marker, delta
+
+    
     # face detection
     if (frame_cnt % DETECT_FACES_EVERY_FRAMES) == 0:
         faces = detect_faces(gray)
 
-    draw_faces(gray, faces)
+    if len(faces) > 0:
+        draw_faces(gray, faces)
+        # assume a single face
+        face = faces[0]
+        print('Face', face)
 
-    #print(rejectedImgPoints)
     # Display the resulting frame
-    #if (frame_cnt % 2) == 0:
     cv2.imshow('frame', gray)
     frame_cnt += 1
     if cv2.waitKey(1) & 0xFF == ord('q'):
