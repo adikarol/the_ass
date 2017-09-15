@@ -16,9 +16,6 @@ MARKER_LENGTH = 0.08
 DETECT_FACES_EVERY_FRAMES = 10
 CALIBRATE_EVERY_FRAMES = 100
 
-# 28cm between rotating sponge and middle of marker #9
-SHOWER_MARKER9_DISTANCE = 0.28
-
 cap = cv2.VideoCapture(0)
 
 real_world_coords = [
@@ -191,7 +188,7 @@ def send_motor_sponge_absolute(x, y):
     message = 'S %f %f' % (x, y)
     send_to_motor(message)
 
-def send_motor_zoorum(z):
+def send_motor_zurum(z):
     message = 'Z %d' % (1 if z else 0)
     send_to_motor(message)
 
@@ -207,8 +204,17 @@ faces = []
 mtx = None
 dist = None
 
-zoorum_mode = (False, 0)   # frame-count
+zurum_mode = (False, 0)   # frame-count
 sent_sponge_position = False
+
+
+def face_in_range (face_x, face_y):
+    if face_x < 0.15: return False
+    if face_x > 0.63: return False
+    if face_y < 0.37: return False
+    if face_y > 0.75: return False
+    return True
+
 
 while(True):
     # Capture frame-by-frame
@@ -271,34 +277,38 @@ while(True):
     if (frame_cnt % DETECT_FACES_EVERY_FRAMES) == 0:
         faces = detect_faces(gray)
 
+    found_face_in_range = False
     if len(faces) > 0:
         draw_faces(gray, faces)
-        if zoorum_mode[0] == False:
-            send_motor_zoorum(True)
-        zoorum_mode = (True, frame_cnt)
-        # assume a single face
-        face = faces[0]
-        (x, y, w, h) = face
-        # cheat, as if face is an aruco marker
-        imgpoints_face = np.array([[[[x, y], [x+w, y], [x+w, y+h], [x, y+h]]]], dtype=np.float32)
-#        print imgpoints_face
-        if mtx is not None:
-            rvecs_face, tvecs_face, _objPoints_face = aruco.estimatePoseSingleMarkers(imgpoints_face, 0.20, mtx, dist)#, rvecs, tvecs)
-            gray = aruco.drawDetectedMarkers(gray, imgpoints_face) #corners)
-            for tvec, rvec in zip(tvecs_face, rvecs_face):
-                gray = aruco.drawAxis(gray, mtx, dist, rvec, tvec, 0.08)
-            if chosen_marker > 0:
-                face_delta = tvecs_face[0][0] - tvecs_m[0][0]
-                if chosen_marker > 1:
-                    face_delta += marker_center(chosen_marker) - marker_center(1)
+        for face in faces:
+            (x, y, w, h) = face
+            # cheat, as if face is an aruco marker
+            imgpoints_face = np.array([[[[x, y], [x+w, y], [x+w, y+h], [x, y+h]]]], dtype=np.float32)
+            if mtx is not None:
+                rvecs_face, tvecs_face, _objPoints_face = aruco.estimatePoseSingleMarkers(imgpoints_face, 0.20, mtx, dist)#, rvecs, tvecs)
+                gray = aruco.drawDetectedMarkers(gray, imgpoints_face) #corners)
+                for tvec, rvec in zip(tvecs_face, rvecs_face):
+                    gray = aruco.drawAxis(gray, mtx, dist, rvec, tvec, 0.08)
+                if chosen_marker > 0:
+                    face_delta = tvecs_face[0][0] - tvecs_m[0][0]
+                    if chosen_marker > 1:
+                        face_delta += marker_center(chosen_marker) - marker_center(1)
 
-#            print('Face delta', face_delta)
-            cv2.putText(gray, '%.2f,%.2f' % (face_delta[0], face_delta[1]), (x+20, y), cv2.FONT_HERSHEY_DUPLEX, 1, (0,0,255), 2)
-            send_motor_face_absolute(face_delta[0], face_delta[1] - 0.1)  # add 10cm up from center
+                # filter the face if it's out of range
+                if face_in_range (face_delta[0], face_delta[1] - 0.1):
+                    found_face_in_range = True
+                    cv2.putText(gray, '%.2f,%.2f' % (face_delta[0], face_delta[1]), (x+20, y), cv2.FONT_HERSHEY_DUPLEX, 1, (0,0,255), 2)
+                    send_motor_face_absolute(face_delta[0], face_delta[1] - 0.1)  # add 10cm up from center
+                    break
+    if not found_face_in_range:
+        if zurum_mode[0] and frame_cnt > zurum_mode[1] + 60:
+            zurum_mode = (False, frame_cnt)
+            send_motor_zurum(False)
+            sent_sponge_position = False
     else:
-        if zoorum_mode[0] and frame_cnt > zoorum_mode[1] + 60:
-            zoorum_mode = (False, frame_cnt)
-            send_motor_zoorum(False)
+        if zurum_mode[0] == False:
+            send_motor_zurum(True)
+        zurum_mode = (True, frame_cnt)
 
     # Display the resulting frame
     cv2.imshow('frame', gray)
