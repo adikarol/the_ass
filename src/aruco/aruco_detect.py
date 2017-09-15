@@ -175,7 +175,7 @@ def calibrate_using_markers(corners, ids, gray_shape):
 ######## COMM ########
 
 motor_address = '10.0.0.1'
-motor_port = 5008
+motor_port = 8888
 
 def send_to_motor(message):
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
