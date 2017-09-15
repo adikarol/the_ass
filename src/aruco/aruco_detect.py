@@ -281,7 +281,7 @@ while(True):
         (x, y, w, h) = face
         # cheat, as if face is an aruco marker
         imgpoints_face = np.array([[[[x, y], [x+w, y], [x+w, y+h], [x, y+h]]]], dtype=np.float32)
-        print imgpoints_face
+#        print imgpoints_face
         if mtx is not None:
             rvecs_face, tvecs_face, _objPoints_face = aruco.estimatePoseSingleMarkers(imgpoints_face, 0.20, mtx, dist)#, rvecs, tvecs)
             gray = aruco.drawDetectedMarkers(gray, imgpoints_face) #corners)
@@ -292,7 +292,7 @@ while(True):
                 if chosen_marker > 1:
                     face_delta += marker_center(chosen_marker) - marker_center(1)
 
-            print('Face delta', face_delta)
+#            print('Face delta', face_delta)
             cv2.putText(gray, '%.2f,%.2f' % (face_delta[0], face_delta[1]), (x+20, y), cv2.FONT_HERSHEY_DUPLEX, 1, (0,0,255), 2)
             send_motor_face_absolute(face_delta[0], face_delta[1] - 0.1)  # add 10cm up from center
     else:
