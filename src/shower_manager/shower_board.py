@@ -19,6 +19,9 @@ class ShowerBoard(object):
       @returns: LEFT, RIGHT
     """
     
+    x += X_MARKER_TO_MOTOR
+    y += Y_MARKER_TO_MOTOR
+
     left = math.sqrt (
       math.pow(x - X_CART_LEN/2, 2) +
       math.pow(y - Y_CART_LEN, 2)
@@ -75,6 +78,7 @@ class ShowerBoard(object):
         if cmd_tokens [0] == 'S' and len (cmd_tokens) >= 3:
           # received cart position from camera
           x, y = int (cmd_tokens [1]), int (cmd_tokens [2])
+          y += Y_MARKER_TO_CART
           print "Setting position to ", x, ", ", y
           l_mm, r_mm = self.calc_belts_lens_from_position(x, y)
           print "Setting belt lengths to ", l_mm, ", ", r_mm
