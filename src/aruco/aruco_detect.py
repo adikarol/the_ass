@@ -141,11 +141,11 @@ def draw_faces(gray, faces):
         cv2.rectangle(gray, (x,y), (x+w, y+h), (0, 255, 0), 2)
 
         # Print the coordinates of the face on the screen
-        coord = "(%s, %s)" % (x, y)
-        cv2.putText(gray, coord, (x+20, y), cv2.FONT_HERSHEY_DUPLEX, 1, (0,0,255),2)
+#        coord = "(%s, %s)" % (x, y)
+#        cv2.putText(gray, coord, (x+20, y), cv2.FONT_HERSHEY_DUPLEX, 1, (0,0,255),2)
 
         # Draw a small dot in the exact coordintas - test!
-        cv2.circle(gray, (x, y), 15, (0, 0, 255), 3)
+#        cv2.circle(gray, (x, y), 15, (0, 0, 255), 3)
 
     return gray
 
@@ -209,6 +209,10 @@ while(True):
     # detect markers
     corners, ids = detect_markers(gray)
 
+    chosen_marker = 0
+    tvecs_m = None
+    tvecs_9 = None
+        
     # any markers detected?
     if ids is not None:
 
@@ -218,12 +222,9 @@ while(True):
         # squares around markers
         gray = aruco.drawDetectedMarkers(gray, corners)
             
-        chones_marker = 0
-        tvecs_m = None
-        tvecs_9 = None
-        
         # find central marker (#9)
         objpoints_9, imgpoints_9 = get_points_for_marker(corners, ids, 9)
+        print 'points9', imgpoints_9
         if imgpoints_9 is not None:
             rvecs_9, tvecs_9, _objPoints_9 = aruco.estimatePoseSingleMarkers(imgpoints_9, MARKER_LENGTH, mtx, dist)#, rvecs, tvecs)
             gray = aruco.drawDetectedMarkers(gray, imgpoints_9) #corners)
@@ -260,7 +261,22 @@ while(True):
         draw_faces(gray, faces)
         # assume a single face
         face = faces[0]
-        print('Face', face)
+        (x, y, w, h) = face
+        # cheat, as if face is an aruco marker
+        imgpoints_face = np.array([[[[x, y], [x+w, y], [x+w, y+h], [x, y+h]]]], dtype=np.float32)
+        print imgpoints_face
+        if mtx is not None:
+            rvecs_face, tvecs_face, _objPoints_face = aruco.estimatePoseSingleMarkers(imgpoints_face, 0.20, mtx, dist)#, rvecs, tvecs)
+            gray = aruco.drawDetectedMarkers(gray, imgpoints_face) #corners)
+            for tvec, rvec in zip(tvecs_face, rvecs_face):
+                gray = aruco.drawAxis(gray, mtx, dist, rvec, tvec, 0.08)
+            if chosen_marker > 0:
+                face_delta = tvecs_face[0][0] - tvecs_m[0][0]
+                if chosen_marker > 1:
+                    face_delta += marker_center(chosen_marker) - marker_center(1)
+
+            print('Face delta', face_delta)
+            cv2.putText(gray, '%.2f,%.2f' % (face_delta[0], face_delta[1]), (x+20, y), cv2.FONT_HERSHEY_DUPLEX, 1, (0,0,255), 2)
 
     # Display the resulting frame
     cv2.imshow('frame', gray)
