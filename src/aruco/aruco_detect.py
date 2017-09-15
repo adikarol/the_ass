@@ -179,22 +179,25 @@ motor_port = 8888
 
 motor_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
-#def send_to_motor(message):
+def send_to_motor(message):
 #    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 #    s.sendto(message, (motor_ip, motor_port))
 #    s.close()
+    print 'send to motor ', message
+    motor_socket.sendto(message, (motor_address, motor_port))
+
 
 def send_motor_sponge_absolute(x, y):
     message = 'S %f %f' % (x, y)
-    motor_socket.sendto(message, (motor_address, motor_port))
+    send_to_motor(message)
 
 def send_motor_zoorum(z):
     message = 'Z %d' % (1 if z else 0)
-    motor_socket.sendto(message, (motor_address, motor_port))
+    send_to_motor(message)
 
 def send_motor_face_absolute(x, y):
     message = 'M %f %f' % (x, y)
-    motor_socket.sendto(message, (motor_address, motor_port))
+    send_to_motor(message)
     
 ######## END COMM ########
 
@@ -205,6 +208,7 @@ mtx = None
 dist = None
 
 zoorum_mode = (False, 0)   # frame-count
+sent_sponge_position = False
 
 while(True):
     # Capture frame-by-frame
@@ -233,7 +237,7 @@ while(True):
             
         # find central marker (#9)
         objpoints_9, imgpoints_9 = get_points_for_marker(corners, ids, 9)
-        print 'points9', imgpoints_9
+ #       print 'points9', imgpoints_9
         if imgpoints_9 is not None:
             rvecs_9, tvecs_9, _objPoints_9 = aruco.estimatePoseSingleMarkers(imgpoints_9, MARKER_LENGTH, mtx, dist)#, rvecs, tvecs)
             gray = aruco.drawDetectedMarkers(gray, imgpoints_9) #corners)
@@ -258,10 +262,11 @@ while(True):
             delta = tvecs_9[0][0] - tvecs_m[0][0]
             if chosen_marker > 1:
                 delta += marker_center(chosen_marker) - marker_center(1)
-#            send_motor_absolute((delta[0], delta[1]))
-            print 'absolute', chosen_marker, delta
-            send_motor_sponge_absolute(delta[0], delta[1])
-    
+#            print 'absolute', chosen_marker, delta
+            if sent_sponge_position == False:
+                send_motor_sponge_absolute(delta[0], delta[1])
+                sent_sponge_position = True
+
     # face detection
     if (frame_cnt % DETECT_FACES_EVERY_FRAMES) == 0:
         faces = detect_faces(gray)
