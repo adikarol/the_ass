@@ -35,20 +35,6 @@ class ShowerBoard(object):
   
     return left, right
 
-  def read_target_coordinates(self):
-    """
-      This method reads cart target coordinates from the camera
-      
-      @returns: cart_new_x_pos, cart_new_y_pos
-    """
-    # TODO change into real read from Mikel. meanwhile only increment
-    self.cart_x_pos = self.cart_x_pos+10
-    self.cart_y_pos = self.cart_y_pos+10
-    #print "\nNew cart position: [",self.cart_x_pos," ",self.cart_y_pos,")"
-    
-    return self.cart_x_pos , self.cart_y_pos
-
-
   def calc_target_steps(self, mm):
   
     """
@@ -58,8 +44,6 @@ class ShowerBoard(object):
     return int(mm / MM_IN_SINGLE_STEP) 
 
 
-  
-  
   ############# MAIN RUNNING METHOD #####################    
   def run(self):
   
@@ -80,8 +64,12 @@ class ShowerBoard(object):
         cmd_tokens = cmd.split ()
         if cmd_tokens [0] == 'S' and len (cmd_tokens) >= 3:
           # received cart position from camera
-          x, y = int (cmd_tokens [1]), int (cmd_tokens [2])
-          y += Y_MARKER_TO_CART
+          x, y = float (cmd_tokens [1]), float (cmd_tokens [2])
+          # meters to millimeters
+          x *= 1000
+          y *= 1000
+          # y position should be adjusted as if it's the sponge
+          y += Y_MARKER_TO_SPONGE
           print "Setting position to ", x, ", ", y
           l_mm, r_mm = self.calc_belts_lens_from_position(x, y)
           print "Setting belt lengths to ", l_mm, ", ", r_mm
@@ -95,7 +83,10 @@ class ShowerBoard(object):
 
         elif cmd_tokens [0] == 'M' and len (cmd_tokens) >= 3:
           # received cart target coordinates from camera 
-          x, y = int (cmd_tokens [1]), int (cmd_tokens [2])
+          x, y = float (cmd_tokens [1]), float (cmd_tokens [2])
+          # meters to millimeters
+          x *= 1000
+          y *= 1000
           print "Moving to ", x, ", ", y
           l_mm, r_mm = self.calc_belts_lens_from_position(x, y)
           print "Required lengths (in mm): ", l_mm, ", ", r_mm
