@@ -271,6 +271,7 @@ while(True):
 #            print 'absolute', chosen_marker, delta
             if sent_sponge_position == False:
                 send_motor_sponge_absolute(delta[0], delta[1])
+                send_motor_face_absolute(0.39, 0.37) # move cart to original position when no face is recognized (or beginning)
                 sent_sponge_position = True
 
     # face detection
@@ -305,6 +306,7 @@ while(True):
             zurum_mode = (False, frame_cnt)
             send_motor_zurum(False)
             sent_sponge_position = False
+            
     else:
         if zurum_mode[0] == False:
             send_motor_zurum(True)
